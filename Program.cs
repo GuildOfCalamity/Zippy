@@ -12,6 +12,56 @@ public class Program
     {
         Console.OutputEncoding = Encoding.UTF8;
 
+        #region [Commandline functionality]
+        if (args.Length == 2)
+        {
+            string inputFile = string.Empty;
+            HuffmanByteTree hbt = new HuffmanByteTree();
+            switch(args[0])
+            {
+                // Zipping switches
+                case "c": case "-c":
+                case "z": case "-z":
+                    inputFile = args[1];
+                    if (File.Exists(inputFile))
+                    {
+                        Console.WriteLine($"⇒ Compressing \"{inputFile}\"…");
+                        var fileData = File.ReadAllBytes(inputFile);
+                        hbt.CompressByteArrayToStream(fileData, $"{Path.GetFileNameWithoutExtension(inputFile)}.zipped");
+                        Console.WriteLine($"⇒ File compression successful.");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"⇒ File \"{inputFile}\" could not be located.");
+                    }
+                    break;
+                // Unzipping switches
+                case "d": case "-d":
+                case "u": case "-u":
+                    inputFile = args[1];
+                    if (File.Exists(inputFile))
+                    {
+                        var decomped = hbt.DecompressByteArrayFromStream($"{inputFile}");
+                        File.WriteAllBytes($"{Path.GetFileNameWithoutExtension(inputFile)}.unzipped", decomped);
+                        Console.WriteLine($"⇒ File decompression successful.");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"⇒ File \"{inputFile}\" could not be located.");
+                    }
+                    break;
+                default:
+                    Console.WriteLine($"⇒ Undefined switch or wrong argument order.");
+                    Console.WriteLine($"⇒ EXAMPLE: \"Zippy -c SomeFileToCompress.txt\"");
+                    Console.WriteLine($"⇒ EXAMPLE: \"Zippy -d SomeFileToDecompress.txt\"");
+                    break;
+            }
+            Console.WriteLine($"⇒ Process completed. Press any key to exit.");
+            _ = Console.ReadKey(true);
+            return;
+        }
+        #endregion
+
         string originalText = "This is an example string for Huffman encoding. The more data provided, the better the compression.";
 
         #region [Text reading and writing]
@@ -70,7 +120,6 @@ public class Program
         #endregion
 
         Console.WriteLine($"⇒ Test completed. Press any key to exit.");
-
         _ = Console.ReadKey(true);
     }
 }
