@@ -11,6 +11,8 @@ public class Program
     static void Main(string[] args)
     {
         Console.OutputEncoding = Encoding.UTF8;
+        AppDomain.CurrentDomain.UnhandledException += new UnhandledExceptionEventHandler(CurrentDomain_UnhandledException);
+        Console.CancelKeyPress += new ConsoleCancelEventHandler(ConsoleHandler);
 
         #region [Commandline functionality]
         if (args.Length == 2)
@@ -25,10 +27,15 @@ public class Program
                     inputFile = args[1];
                     if (File.Exists(inputFile))
                     {
+                        var ofl = new FileInfo(inputFile).Length;
+                        if (ofl > 200_000_000) // 200MB
+                            Console.WriteLine($"⇒ WARNING: Files this large (>200MB) should not be attempted.");
                         Console.WriteLine($"⇒ Compressing \"{inputFile}\"…");
-                        var fileData = File.ReadAllBytes(inputFile);
+                        var fileData = Retry(() => File.ReadAllBytes(inputFile));
                         hbt.CompressByteArrayToStream(fileData, $"{Path.GetFileNameWithoutExtension(inputFile)}.zipped");
-                        Console.WriteLine($"⇒ File compression successful.");
+                        Console.WriteLine($"⇒ Compression operation completed.");
+                        var cfl = new FileInfo($"{Path.GetFileNameWithoutExtension(inputFile)}.zipped").Length;
+                        Console.WriteLine($"⇒ Compression amount: {((float)cfl/(float)ofl)*100f:N1}%");
                     }
                     else
                     {
@@ -41,9 +48,9 @@ public class Program
                     inputFile = args[1];
                     if (File.Exists(inputFile))
                     {
-                        var decomped = hbt.DecompressByteArrayFromStream($"{inputFile}");
+                        var decomped = Retry(() => hbt.DecompressByteArrayFromStream($"{inputFile}"));
                         File.WriteAllBytes($"{Path.GetFileNameWithoutExtension(inputFile)}.unzipped", decomped);
-                        Console.WriteLine($"⇒ File decompression successful.");
+                        Console.WriteLine($"⇒ Decompression operation completed.");
                     }
                     else
                     {
@@ -122,4 +129,81 @@ public class Program
         Console.WriteLine($"⇒ Test completed. Press any key to exit.");
         _ = Console.ReadKey(true);
     }
+
+    #region [Helpers]
+    static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
+    {
+        Console.WriteLine("⇒ UnhandledException Event!");
+        Console.WriteLine($"⇒ Message: {(e.ExceptionObject as Exception)?.Message}");
+    }
+
+    protected static void ConsoleHandler(object? sender, ConsoleCancelEventArgs args)
+    {
+        Console.WriteLine();
+        //$" Key pressed......: {args.SpecialKey}"
+        //$" Cancel property..: {args.Cancel}"
+        args.Cancel = false; // Setting the Cancel property to true will prevent the process from terminating.
+        Thread.Sleep(500);
+        Environment.Exit(-1);
+    }
+
+    /// <summary>
+    ///   Generic retry mechanism with exponential back-off
+    /// <example><code>
+    ///   Retry(() => MethodThatHasNoReturnValue());
+    /// </code></example>
+    /// </summary>
+    static void Retry(Action action, int maxRetry = 3, int retryDelay = 1000)
+    {
+        int retries = 0;
+        while (true)
+        {
+            try
+            {
+                action();
+                break;
+            }
+            catch (Exception ex)
+            {
+                retries++;
+                if (retries > maxRetry)
+                {
+                    throw new TimeoutException($"Operation failed after {maxRetry} retries: {ex.Message}", ex);
+                }
+                Console.WriteLine($"⇒ Retry {retries}/{maxRetry} after failure: {ex.Message}. Retrying in {retryDelay} ms...");
+                Thread.Sleep(retryDelay);
+                retryDelay *= 2; // Double the delay after each attempt.
+            }
+        }
+    }
+
+    /// <summary>
+    ///   Modified retry mechanism for return value with exponential back-off.
+    /// <example><code>
+    ///   int result = Retry(() => MethodThatReturnsAnInteger());
+    /// </code></example>
+    /// </summary>
+    static T Retry<T>(Func<T> func, int maxRetry = 3, int retryDelay = 1000)
+    {
+        int retries = 0;
+        while (true)
+        {
+            try
+            {
+                return func();
+            }
+            catch (Exception ex)
+            {
+                retries++;
+                if (retries > maxRetry)
+                {
+                    throw new TimeoutException($"Operation failed after {maxRetry} retries: {ex.Message}", ex);
+                }
+                Console.WriteLine($"⇒ Retry {retries}/{maxRetry} after failure: {ex.Message}. Retrying in {retryDelay} ms...");
+                Thread.Sleep(retryDelay);
+                retryDelay *= 2; // Double the delay after each attempt.
+            }
+        }
+    }
+    #endregion
 }

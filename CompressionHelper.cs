@@ -137,6 +137,11 @@ public class HuffmanCharTree
     /// Compress the input text to a binary string using the Huffman codes.
     /// This can be used with a <see cref="System.IO.BinaryWriter"/> to efficiently write the data to disk.
     /// </summary>
+    /// <remarks>
+    /// If extremely large amounts of data are to be compressed then this method could throw
+    /// <see cref="System.OutOfMemoryException"/> since the <see cref="System.Text.StringBuilder"/>
+    /// has a limit to how much data it can hold, approx 200MB.
+    /// </remarks>
     public string Compress(string text)
     {
         if (codes.Count == 0)
@@ -607,6 +612,11 @@ public class HuffmanByteTree
     /// <summary>
     /// Compress the input byte array and return the binary string representation
     /// </summary>
+    /// <remarks>
+    /// If extremely large amounts of data are to be compressed then this method could throw
+    /// <see cref="System.OutOfMemoryException"/> since the <see cref="System.Text.StringBuilder"/>
+    /// has a limit to how much data it can hold, approx 200MB.
+    /// </remarks>
     public string Compress(byte[] data)
     {
         StringBuilder sb = new StringBuilder();
@@ -636,7 +646,10 @@ public class HuffmanByteTree
                 }
             }
         }
-        catch (Exception) { }
+        catch (Exception ex) 
+        {
+            throw new Exception($"CompressByteArrayToStream: {ex.Message}", ex);
+        }
     }
 
     /// <summary>
@@ -688,7 +701,11 @@ public class HuffmanByteTree
                 }
             }
         }
-        catch (Exception) { result = []; }
+        catch (Exception ex)
+        {
+            //result = []; 
+            throw new Exception($"DecompressByteArrayFromStream: {ex.Message}", ex);
+        }
         return result;
     }
 
@@ -952,6 +969,11 @@ public class HuffmanShortTree
     /// <summary>
     /// Compress the input short array and return the binary string representation
     /// </summary>
+    /// <remarks>
+    /// If extremely large amounts of data are to be compressed then this method could throw
+    /// <see cref="System.OutOfMemoryException"/> since the <see cref="System.Text.StringBuilder"/>
+    /// has a limit to how much data it can hold, approx 200MB.
+    /// </remarks>
     public string Compress(short[] data)
     {
         StringBuilder sb = new StringBuilder();
